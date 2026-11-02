@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>하이런치 · 테스트 API 연결 확인</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;background:#fff9f1;color:#27241f;margin:0}main{box-sizing:border-box;max-width:530px;margin:60px auto;background:#fff;border:1px solid #eadfcd;border-radius:18px;padding:28px}h1{font-size:22px}p,small{color:#626262}button{width:100%;padding:14px;border:0;border-radius:10px;background:#e88345;color:white;font-weight:bold;font-size:17px;cursor:pointer}button:disabled{opacity:.6}#result{margin-top:20px;background:#f4f4f4;padding:16px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}.ok{background:#e9f6ec!important;color:#245b39}.fail{background:#ffefed!important;color:#923d31}</style></head>
+<body><main><h1>하이런치 2.0 · 서버 연결 확인</h1><p>GitHub에서 테스트용 Apps Script까지 통신이 되는지 확인합니다. 실제 직원 응답은 저장하지 않습니다.</p><button id="b">서버 연결 테스트하기</button><div id="result" role="status" aria-live="polite">아직 검사하지 않았습니다.</div><p><small>가상 토큰만 사용합니다. 실제 직원 정보와 보안키는 포함되지 않습니다.</small></p></main>
+<script>
+const b=document.getElementById('b'),o=document.getElementById('result');
+b.addEventListener('click',async()=>{
+ b.disabled=true;o.className='';o.textContent='연결 확인 중…';
+ try{
+  const r=await fetch('https://hilunch-v2-test-api.dnemfb.workers.dev/api',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({action:'boot',groupToken:'__TEST_INVALID_GROUP__',personToken:'__TEST_INVALID_MEMBER__'})});
+  const d=await r.json(),err=String(d?.error||'');
+  if(r.ok&&d?.ok===false&&err.includes('유효하지 않은 그룹 링크')){o.className='ok';o.textContent='✅ 연결 성공!\nGitHub → Cloudflare → Apps Script까지 정상 전달됐습니다.\n가상 토큰의 그룹 조회가 차단된 것은 정상입니다.';}
+  else{o.className='fail';o.textContent='⚠️ 연결 점검 필요\nHTTP '+r.status+'\n'+JSON.stringify(d);}
+ }catch(e){o.className='fail';o.textContent='⚠️ 연결 점검 필요\n'+String(e?.message||e);}
+ finally{b.disabled=false;}
+});
+</script></body></html>
