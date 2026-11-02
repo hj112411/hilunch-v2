@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>하이런치 2.0 · 테스트 응답 저장</title>
+<style>
+*{box-sizing:border-box}body{font:15px/1.7 system-ui,'Malgun Gothic',sans-serif;background:#fff8ef;color:#2d2924;margin:0;padding:26px 12px}main{max-width:580px;margin:25px auto;background:white;border:1px solid #edddcb;border-radius:19px;padding:26px}h1{font-size:23px;line-height:1.35;margin:3px 0 14px}p{color:#655d54}label{display:block;font-weight:700;margin:18px 0 7px}input{width:100%;font-size:14px;border:1px solid #d4cdc4;border-radius:10px;padding:13px;outline-color:#e78743}button{display:block;width:100%;border:0;border-radius:10px;padding:13px;margin-top:13px;background:#e98546;color:white;font-size:16px;font-weight:700;cursor:pointer}button:disabled{opacity:.5}.note{border-radius:10px;background:#f4f3ef;padding:13px;font-size:13px;color:#615c55}.res{margin-top:18px;padding:14px;border-radius:10px;background:#f5f5f5;white-space:pre-wrap;overflow-wrap:anywhere}.good{background:#e9f7ef;color:#265f3c}.bad{background:#fcebea;color:#8e3e34}[hidden]{display:none!important}small{display:block;margin-top:20px;color:#786f65;font-size:12px}
+</style></head><body><main><h1>하이런치 2.0 · 응답 저장 테스트</h1>
+<p>GitHub와 테스트용 Google Sheets 연결을 점검합니다. <b>운영DB에는 저장되지 않습니다.</b></p>
+<div class="note">기존 직원용 개인 QR 링크를 하나 복사하여 아래에 붙여넣으세요. 이 페이지는 원래 운영용 웹 앱에는 접속하지 않습니다. 개인 링크는 채팅이나 공개 저장소에 공유하지 마세요.</div>
+<label for="u">기존 하이런치 직원용 개인 링크</label><input id="u" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec?g=...&p=...">
+<button id="v">1. 개인 링크 확인</button>
+<section id="next" hidden><div id="who" class="res good"></div>
+<p>테스트DB에만 가상 응답을 저장합니다. 날짜: <b>11/4(수)</b> · 메뉴: <b>한식</b> · 메모: 저장 테스트. 기존 테스트 응답이 있다면 저장을 막습니다.</p>
+<button id="s">2. 테스트 응답 1건 저장</button></section>
+<div id="r" class="res" role="status" aria-live="polite">개인 링크를 입력한 뒤 확인 버튼을 누르세요.</div>
+<small>입력한 개인 링크는 GitHub 저장소나 브라우저 저장소에 보관하지 않습니다. 토큰은 Cloudflare를 통해 테스트용 Apps Script에만 전송합니다. 저장 결과는 테스트DB의 ResponsesV2 탭에서 확인하고 삭제할 수 있습니다.</small>
+</main><script>
+'use strict';
+const endpoint='https://hilunch-v2-test-api.dnemfb.workers.dev/api';
+const u=document.getElementById('u'),v=document.getElementById('v'),s=document.getElementById('s'),r=document.getElementById('r'),next=document.getElementById('next'),who=document.getElementById('who');
+let current=null;
+function show(t,kind=''){r.className='res '+kind;r.textContent=t;}
+function parseURL(t){const x=new URL(t.trim());if(x.protocol!=='https:'||x.hostname!=='script.google.com'||!x.pathname.includes('/macros/s/'))throw Error('기존 Apps Script 직원용 링크를 입력해 주세요.');const groupToken=x.searchParams.get('g'),personToken=x.searchParams.get('p');if(!groupToken||!personToken)throw Error('그룹(g)·개인(p) 정보가 없는 링크입니다.');return{groupToken,personToken};}
+async function api(action,tokens,payload){const q=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({action,...tokens,...(payload?{payload}:{})})});const j=await q.json();if(!q.ok||!j.ok)throw Error(j.error||'요청에 실패했습니다.');return j.result;}
+v.addEventListener('click',async()=>{current=null;next.hidden=true;v.disabled=true;show('테스트 서버에서 개인 링크를 확인하는 중…');try{const t=parseURL(u.value);const [a,b]=await Promise.all([api('boot',t),api('state',t)]);if(!a?.member||!a?.group)throw Error('참여자 정보를 찾지 못했습니다.');if(b.myResponse)throw Error('테스트DB에 이 계정의 응답이 이미 있습니다. 다른 개인 링크를 사용해 주세요.');current={...t,group:a.group.id,name:a.member.name};who.textContent='확인 완료: '+current.group+'그룹 · '+current.name+' 님';next.hidden=false;show('✅ 읽기 연결 성공. 아래 버튼으로 테스트DB에 가상 응답 1건을 저장할 수 있습니다.','good');}catch(e){show('⚠️ '+(e.message||'링크 확인 실패'),'bad')}finally{v.disabled=false}});
+s.addEventListener('click',async()=>{if(!current)return;v.disabled=true;s.disabled=true;show('테스트DB에 응답을 저장하는 중…');try{const a=await api('save',current,{dates:['11/4 (수)'],prefs:['한식'],note:'GitHub 저장 연결 테스트 · 삭제 가능',interests:[],story:''});if(!a?.myResponse?.completed)throw Error('저장 결과를 확인하지 못했습니다.');show('✅ 테스트DB 저장 성공!\n'+current.group+'그룹 · '+current.name+' 님\n날짜 11/4(수) / 메뉴 한식\n테스트DB의 ResponsesV2 탭에 새 행이 생성됐는지 확인해 주세요.','good');current=null;next.hidden=true;}catch(e){show('⚠️ '+(e.message||'저장 실패'),'bad')}finally{v.disabled=false;s.disabled=false}});
+u.addEventListener('input',()=>{current=null;next.hidden=true;show('링크를 변경했습니다. 다시 확인해 주세요.');});
+</script></body></html>
