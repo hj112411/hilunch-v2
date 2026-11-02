@@ -4,7 +4,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
-<title>하이런치 2.0 · 개인별 참여 페이지</title><meta name="robots" content="noindex,nofollow"/><meta name="referrer" content="no-referrer"/>
+<title>하이런치 2.0 · 개인별 참여 페이지</title><script>
+(function(){
+ const p=new URLSearchParams(location.hash.slice(1));
+ if(p.get('g')&&p.get('p'))document.documentElement.classList.add('private-link-entry');
+})();
+</script><meta name="robots" content="noindex,nofollow"/><meta name="referrer" content="no-referrer"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
 :root{--brand:#FF9E1B;--accent:#E94C89;--text:#171717;--sub:#6E6963;--line:#EAE6DF;--navy:#1F2A44;--grid:#E8E6D6;--warm:#FFF8EF;--guide:#FFFFFF}
@@ -146,6 +151,11 @@
 .preview-site-note { padding: 10px 16px; background: #F2F6FD; color: #315277; border-bottom: 1px solid #DCE7F5; text-align:center; font-size: 12px; line-height: 1.5; font-weight: 600; }
 </style><style>
 #entryGate[hidden],#liveApp[hidden]{display:none!important}
+#privateLaunch{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;background:#FCFBF7;text-align:center;padding:24px}
+#privateLaunch strong{display:block;color:#171717;font-size:22px;line-height:1.5}
+#privateLaunch span{display:block;margin-top:10px;color:#746D67;font-size:14px;line-height:1.5}
+html.private-link-entry #entryGate{display:none!important}
+html.private-link-entry #privateLaunch{display:flex}
 #entryGate{box-sizing:border-box;width:min(440px,calc(100% - 24px));margin:35px auto;padding:26px 22px;background:#fff;border:1px solid #efe5d7;border-radius:22px;box-shadow:0 12px 30px rgba(0,0,0,.04)}
 #entryGate h1{font-size:21px;margin:0 0 10px}#entryGate p{font-size:13px;line-height:1.8;color:#665e56;margin:0 0 15px}
 #entryGate label{display:block;margin:15px 0 6px;font-weight:700;font-size:14px}
@@ -155,6 +165,7 @@
 #entryMessage.error{color:#b24538}#entryMessage.success{color:#2a7548}#entryGate .testnote{background:#fff7ed;padding:12px;border-radius:12px;color:#79542e}
 </style></head>
 <body>
+<div id="privateLaunch" role="status" aria-live="polite"><div><strong>하이런치 2.0</strong><span>내 점심 멤버를 불러오고 있어요.</span></div></div>
 <section id="entryGate" aria-labelledby="entryTitle">
 <h1 id="entryTitle">하이런치 2.0 · 링크 확인</h1>
 <p class="testnote">개인별 하이런치 참여 링크를 통해 매칭 결과와 일정을 확인할 수 있습니다. 링크에 문제가 있다면 아래에 전체 주소를 붙여넣어 주세요.</p>
@@ -470,9 +481,10 @@ async function openPersonalPage(tokens){
   hydrated=true;renderIntro();loadForm(null);renderRole();
   document.getElementById('entryGate').hidden=true;
   document.getElementById('liveApp').hidden=false;
+  document.documentElement.classList.remove('private-link-entry');
   entryInput.value='';
   window.scrollTo({top:0,behavior:'instant'});
- }catch(e){entryMessage.className='error';entryMessage.textContent='연결 확인 실패: '+(e?.message||'다시 시도해 주세요.');}
+ }catch(e){document.documentElement.classList.remove('private-link-entry');entryMessage.className='error';entryMessage.textContent='연결 확인 실패: '+(e?.message||'다시 시도해 주세요.');}
  finally{entryButton.disabled=false;}
 }
 entryButton.addEventListener('click',()=>{
