@@ -349,6 +349,39 @@ const luckyMarkerRE=/\s*\[HL2_LUCKY:(10|[1-9])\]\s*$/;
 function luckyFromStory(story){const m=String(story||'').match(luckyMarkerRE);return m?Number(m[1]):null;}
 function cleanLuckyStory(story){return String(story||'').replace(luckyMarkerRE,'').trimEnd();}
 function storyWithLucky(story,n){const text=cleanLuckyStory(story);return text+(text?'\n':'')+'[HL2_LUCKY:'+n+']';}
+
+const luckyDrawRE=/\[HL2_DRAW:((?:10|[1-9]),(?:10|[1-9]),(?:10|[1-9]));WIN:([01])\]\s*\[HL2_LUCKY:(10|[1-9])\]\s*$/;
+function luckyDrawFromStory(story){
+ const m=String(story||'').match(luckyDrawRE);if(!m)return null;
+ const numbers=m[1].split(',').map(Number),chosen=Number(m[3]),won=m[2]==='1';
+ if(new Set(numbers).size!==3||numbers.some(n=>n<1||n>10)||won!==numbers.includes(chosen))return null;
+ return {numbers,chosen,won};
+}
+function cleanLuckyStory(story){return String(story||'').replace(luckyMarkerRE,'').replace(/\s*\[HL2_DRAW:[^\]]+\]\s*$/,'').trimEnd();}
+function storyWithLuckyDraw(story,chosen,numbers){
+ const clean=cleanLuckyStory(story),won=numbers.includes(chosen);
+ return (clean?clean+'\n':'')+'[HL2_DRAW:'+numbers.join(',')+';WIN:'+(won?'1':'0')+']\n[HL2_LUCKY:'+chosen+']';
+}
+function secureRandomIndex(maxExclusive){
+ if(typeof crypto==='undefined'||!crypto.getRandomValues)throw new Error('안전한 추첨을 지원하지 않는 브라우저입니다.');
+ const max=4294967296,ceiling=Math.floor(max/maxExclusive)*maxExclusive,arr=new Uint32Array(1);
+ let n;do{crypto.getRandomValues(arr);n=arr[0];}while(n>=ceiling);return n%maxExclusive;
+}
+function drawThreeNumbers(){
+ const ns=Array.from({length:10},(_,i)=>i+1);
+ for(let i=ns.length-1;i>0;i--){const j=secureRandomIndex(i+1);[ns[i],ns[j]]=[ns[j],ns[i]];}
+ return ns.slice(0,3).sort((a,b)=>a-b);
+}
+function showLuckyResult(story){
+ const d=luckyDrawFromStory(story),box=el('luckyResult');
+ box.classList.toggle('hidden',!d);
+ if(!d)return;
+ box.classList.toggle('is-win',d.won);box.classList.toggle('is-lose',!d.won);
+ el('luckyResultTitle').textContent=d.won?'🎉 축하합니다! 당첨이에요!':'☕ 아쉽지만 이번에는 미당첨이에요.';
+ el('luckyResultMessage').textContent=d.won?'우리 그룹 전원에게 1인당 커피값 5,000원을 추가 지원해 드려요.':'커피 행운은 아쉽게 놓쳤지만, 즐거운 하이런치가 기다리고 있어요!';
+ el('luckyWinningNumbers').textContent='당첨번호: '+d.numbers.join(' · ')+' / 우리 그룹 선택: '+d.chosen;
+}
+
 function renderLuckyNumbers(){
  if(!isApplicant)return;
  const saved=luckyFromStory(mine()?.story);
