@@ -492,7 +492,7 @@ async function invokeGas(method,...args){
  return workerCall(body);
 }
 async function getState(){const r=await invokeGas('getGroupState',BOOT.groupToken,BOOT.member.token);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
-async function saveMyResponse(){const payload={dates:[...selectedDates],prefs:[...preference],note:el('foodNote').value.trim(),interests:[...selectedInterests],story:luckyFromStory(mine()?.story)?storyWithLucky(el('storyNote').value.trim(),luckyFromStory(mine()?.story)):el('storyNote').value.trim()};const r=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
+async function saveMyResponse(){const payload={dates:[...selectedDates],prefs:[...preference],note:el('foodNote').value.trim(),interests:[...selectedInterests],story:luckyDrawFromStory(mine()?.story)?storyWithLuckyDraw(el('storyNote').value.trim(),luckyFromStory(mine()?.story),luckyDrawFromStory(mine()?.story).numbers):(luckyFromStory(mine()?.story)?storyWithLucky(el('storyNote').value.trim(),luckyFromStory(mine()?.story)):el('storyNote').value.trim())};const r=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
 // 마지막 [응답 마치기]는 기다리는 화면 없이 다음 안내를 즉시 펼칩니다.
 // 서버가 확인하기 전에는 '저장 완료'라고 안내하지 않습니다.
 function responseSaveNotice(){return isApplicant?el('applicantNextAction'):el('responseSavedNotice');}
@@ -594,13 +594,16 @@ function bind(){
    if(latest.final||!latest.finalizationOpen)throw new Error('현재는 행운번호를 확정할 수 없습니다.');
    const r=latest.responses?.[BOOT.member.name];
    if(!r?.completed)throw new Error('먼저 참여 응답을 완료해 주세요.');
-   const payload={dates:[...(r.dates||[])],prefs:[...(r.prefs||[])],note:r.note||'',interests:[...(r.interests||[])],story:storyWithLucky(r.story,chosenNumber)};
+   // 그룹별로 당첨번호 3개를 보안 난수로 추첨하고 선택번호·결과를 함께 저장합니다.
+   const winningNumbers=drawThreeNumbers();
+   const payload={dates:[...(r.dates||[])],prefs:[...(r.prefs||[])],note:r.note||'',interests:[...(r.interests||[])],story:storyWithLuckyDraw(r.story,chosenNumber,winningNumbers)};
    const result=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);
    state={responses:result.responses||{},final:result.final||null,restaurants:result.restaurants||[],responseCount:result.responseCount||0,menuSummary:result.menuSummary||{categories:[],notes:[]},finalizationOpen:!!result.finalizationOpen};
    const confirmed=luckyFromStory(mine()?.story);
-   if(confirmed!==chosenNumber)throw new Error('저장 결과를 확인하지 못했습니다. 새로고침해 상태를 확인해 주세요.');
+   const savedDraw=luckyDrawFromStory(mine()?.story);
+   if(confirmed!==chosenNumber||!savedDraw||savedDraw.numbers.join(',')!==winningNumbers.join(','))throw new Error('저장 결과를 확인하지 못했습니다. 새로고침해 상태를 확인해 주세요.');
    renderLuckyNumbers();
-   el('luckyNotice').textContent=confirmed+'번으로 확정됐습니다. 운영DB에 저장되었습니다.';
+   el('luckyNotice').textContent=confirmed+'번으로 확정됐습니다. 결과가 운영DB에 저장되었습니다.';
   }catch(e){
    el('luckyNotice').className='lucky-notice is-error';
    el('luckyNotice').textContent='행운번호를 저장하지 못했습니다. ('+(e?.message||'연결 오류')+')';
