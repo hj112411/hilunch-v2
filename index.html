@@ -313,7 +313,7 @@ html.private-link-entry #privateLaunch{display:flex}
 <h3 class="section-title">☕ 우리 그룹의 행운번호</h3>
 <p class="lucky-caption">그룹원들과 함께 1~10 중 행운번호 하나를 골라 주세요! 당첨번호는 총 3개, 번호를 맞힌 그룹에는 1인당 커피값 5,000원을 추가 지원해 드려요. ☕</p>
 <div class="lucky-number-grid" id="luckyNumberGrid" role="group" aria-label="행운번호 선택"></div>
-<div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 확정하기</button></div>
+<div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 선택하고 결과 확인하기</button></div>
 <p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
 <div class="lucky-result hidden" id="luckyResult" role="status" aria-live="polite"><strong id="luckyResultTitle"></strong><p id="luckyResultMessage"></p><p class="draw-numbers" id="luckyWinningNumbers"></p></div>
 </section>
@@ -403,11 +403,11 @@ function renderLuckyNumbers(){
    grid.querySelectorAll('button').forEach(x=>{const yes=Number(x.dataset.number)===pendingLuckyNumber;x.classList.toggle('is-selected',yes);x.setAttribute('aria-pressed',String(yes));});
    el('saveLuckyNumber').disabled=false;
    el('luckyNotice').className='lucky-notice';
-   el('luckyNotice').textContent='번호를 정했다면 ‘행운번호 확정하기’를 눌러 주세요.';
+   el('luckyNotice').textContent='번호를 정했다면 ‘행운번호 선택하고 결과 확인하기’를 눌러 주세요.';
   }));
  }
  el('saveLuckyNumber').disabled=true;
- el('saveLuckyNumber').textContent=saved?'확정 완료':'행운번호 확정하기';
+ el('saveLuckyNumber').textContent=saved?'확정 완료':'행운번호 선택하고 결과 확인하기';
  el('luckyNotice').className='lucky-notice';
  el('luckyNotice').textContent=saved?saved+'번이 확정됐습니다. 한 번 확정한 번호는 변경할 수 없어요.':'1~10 중 번호 하나를 선택한 뒤 확정해 주세요. 번호는 운영DB에 기록됩니다.';
  showLuckyResult(mine()?.story);
@@ -612,13 +612,18 @@ function bind(){
   }finally{
    confirmButton.disabled=false;
    if(!luckyFromStory(mine()?.story)&&b.textContent!=='저장 상태 확인이 필요해요'){
-    b.textContent='행운번호 확정하기';b.disabled=false;
+    b.textContent='행운번호 선택하고 결과 확인하기';b.disabled=false;
     grid.querySelectorAll('button').forEach(x=>x.disabled=false);
    }
   }
  });
  el('confirmFinal').addEventListener('click',async()=>{
   if(!isApplicant||!state.finalizationOpen)return;
+  if(!luckyFromStory(mine()?.story)){
+   el('luckyDecision').scrollIntoView({behavior:'smooth',block:'center'});
+   alert('최종 일정 확정 전에 행운번호를 선택해 주세요. 번호를 확정하면 추첨 결과를 바로 확인할 수 있습니다.');
+   return;
+  }
   const b=el('confirmFinal');b.disabled=true;b.textContent='일정 확정 중…';
   try{const response=await finalize();if(!response)return;state=response;hideFlow();renderFinal();show('finalConfirmed');}
   catch(e){alert('최종 확정 실패: '+e.message);}
