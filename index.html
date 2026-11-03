@@ -173,6 +173,11 @@
 #confirmLuckyChoice{background:#FF9E1B;border-color:#FF9E1B;color:#FFF}
 .lucky-number:disabled{cursor:default;opacity:1}
 .lucky-picker .lucky-number.is-selected:disabled{background:#FFF1DC;color:#8A4E00}
+.lucky-result{margin-top:15px;padding:17px 14px;border-radius:16px;border:1px solid #E8E1D8;background:#F7F6F3;text-align:center}
+.lucky-result.is-win{background:#FFF3D9;border-color:#EAC481}
+.lucky-result strong{display:block;font-size:19px;line-height:1.55}
+.lucky-result p{font-size:14px;line-height:1.6;margin:8px 0 0;color:#625B53}
+.lucky-result .draw-numbers{font-size:12.5px;color:#7C7166}
 #entryGate[hidden],#liveApp[hidden]{display:none!important}
 #privateLaunch{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;background:#FCFBF7;text-align:center;padding:24px}
 #privateLaunch strong{display:block;color:#171717;font-size:22px;line-height:1.5}
@@ -192,8 +197,8 @@ html.private-link-entry #privateLaunch{display:flex}
 <dialog class="lucky-confirm-dialog" id="luckyConfirmDialog" aria-labelledby="luckyDialogTitle" aria-describedby="luckyDialogDescription">
 <h2 id="luckyDialogTitle">🍀 행운번호를 확정할까요?</h2>
 <p id="luckyDialogDescription">우리 그룹의 행운번호는 <span class="lucky-confirm-number" id="luckySelectedValue"></span>입니다.<br/>그룹원들과 함께 정한 번호인가요?</p>
-<p class="lucky-confirm-warning">한 번 확정하면 변경할 수 없어요.</p>
-<div class="lucky-confirm-actions"><button id="cancelLuckyConfirm" type="button">다시 선택하기</button><button id="confirmLuckyChoice" type="button">확정하고 저장하기</button></div>
+<p class="lucky-confirm-warning">한 번 확정하면 변경할 수 없으며, 당첨 결과가 바로 공개됩니다.</p>
+<div class="lucky-confirm-actions"><button id="cancelLuckyConfirm" type="button">다시 선택하기</button><button id="confirmLuckyChoice" type="button">확정하고 결과 보기</button></div>
 </dialog>
 <section id="entryGate" aria-labelledby="entryTitle">
 <h1 id="entryTitle">하이런치 2.0 · 링크 확인</h1>
@@ -310,13 +315,14 @@ html.private-link-entry #privateLaunch{display:flex}
 <div class="lucky-number-grid" id="luckyNumberGrid" role="group" aria-label="행운번호 선택"></div>
 <div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 확정하기</button></div>
 <p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
+<div class="lucky-result hidden" id="luckyResult" role="status" aria-live="polite"><strong id="luckyResultTitle"></strong><p id="luckyResultMessage"></p><p class="draw-numbers" id="luckyWinningNumbers"></p></div>
 </section>
 </div>
 <section class="section hidden" id="finalConfirmed">
 <h2 class="section-title">하이런치 2.0 일정이 확정됐어요.</h2>
 <div class="final-card" id="finalCard"></div>
 <div class="summary-block" id="restaurantRecommendations"><h3>추천 식당</h3><div class="restaurants" id="restaurantList"></div></div>
-<div class="lucky-final-info hidden" id="luckyFinalInfo"><strong id="luckyFinalTitle"></strong><p class="lucky-caption">그룹에서 선택한 번호입니다. 추첨 결과는 별도로 안내드릴 예정이에요.</p></div>
+<div class="lucky-final-info hidden" id="luckyFinalInfo"><strong id="luckyFinalTitle"></strong><p class="lucky-caption" id="luckyFinalOutcome"></p></div>
 <div class="actions"><button class="secondary hidden" id="editFinalDecision" type="button">최종 일정 수정하기</button></div></section>
 <div class="spacer"></div>
 </div></main></div>
@@ -404,6 +410,7 @@ function renderLuckyNumbers(){
  el('saveLuckyNumber').textContent=saved?'확정 완료':'행운번호 확정하기';
  el('luckyNotice').className='lucky-notice';
  el('luckyNotice').textContent=saved?saved+'번이 확정됐습니다. 한 번 확정한 번호는 변경할 수 없어요.':'1~10 중 번호 하나를 선택한 뒤 확정해 주세요. 번호는 운영DB에 기록됩니다.';
+ showLuckyResult(mine()?.story);
 }
 const el=id=>document.getElementById(id);
 const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -442,7 +449,7 @@ function renderFinal(){
  const cats=(menu.categories||[]).join(' / ')||'응답 없음';
  const notes=(menu.notes||[]).join(' / ');
  el('finalCard').innerHTML=`<div class="final-row"><b>날짜</b>${safe(state.final.date)}</div><div class="final-row"><b>멤버</b>${members.map(m=>safe(m.name)).join(' · ')}</div><div class="final-row final-menu-row"><b>메뉴 선호</b><span>${safe(cats)}</span></div>${notes?`<div class="final-row final-menu-row"><b>참고 사항</b><span>${safe(notes)}</span></div>`:''}`;
- renderRestaurants();const n=isApplicant?luckyFromStory(mine()?.story):null;el('luckyFinalInfo').classList.toggle('hidden',!n);if(n)el('luckyFinalTitle').textContent='☕ 우리 그룹의 행운번호: '+n+'번';el('editFinalDecision').classList.toggle('hidden',!isApplicant||!state.finalizationOpen);
+ renderRestaurants();const n=isApplicant?luckyFromStory(mine()?.story):null;const d=isApplicant?luckyDrawFromStory(mine()?.story):null;el('luckyFinalInfo').classList.toggle('hidden',!n);if(n){el('luckyFinalTitle').textContent='☕ 우리 그룹의 행운번호: '+n+'번';el('luckyFinalOutcome').textContent=d?(d.won?'🎉 당첨! 그룹원 1인당 커피값 5,000원 추가 지원':'아쉽지만 이번에는 미당첨이에요.'):'기존에 선택한 번호입니다.';}el('editFinalDecision').classList.toggle('hidden',!isApplicant||!state.finalizationOpen);
 }
 function renderRole(){
  hideFlow();introReset();const r=mine();
