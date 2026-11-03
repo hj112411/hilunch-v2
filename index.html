@@ -291,7 +291,7 @@ html.private-link-entry #privateLaunch{display:flex}
 <p class="lucky-caption">그룹원들과 함께 1~10 중 숫자 하나를 골라 주세요. 다른 그룹과 같은 번호를 골라도 괜찮아요.</p>
 <div class="lucky-number-grid" id="luckyNumberGrid" role="group" aria-label="행운번호 선택"></div>
 <div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 저장하기</button></div>
-<p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영 담당자에게 자동으로 전달됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
+<p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
 </section>
 </div>
 <section class="section hidden" id="finalConfirmed">
@@ -346,7 +346,7 @@ function renderLuckyNumbers(){
  }));
  el('saveLuckyNumber').disabled=true;
  el('luckyNotice').className='lucky-notice';
- el('luckyNotice').textContent=saved?saved+'번이 저장되어 있어요. 번호를 변경할 수도 있습니다.':'번호를 선택해 저장하면 운영 담당자에게 자동으로 전달됩니다. 최종 일정 확정 전에 저장해 주세요.';
+ el('luckyNotice').textContent=saved?saved+'번이 저장되어 있어요. 번호를 변경할 수도 있습니다.':'번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.';
 }
 const el=id=>document.getElementById(id);
 const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -512,7 +512,7 @@ function bind(){
    state={responses:result.responses||{},final:result.final||null,restaurants:result.restaurants||[],responseCount:result.responseCount||0,menuSummary:result.menuSummary||{categories:[],notes:[]},finalizationOpen:!!result.finalizationOpen};
    const confirmed=luckyFromStory(mine()?.story);
    if(confirmed!==pendingLuckyNumber)throw new Error('저장된 번호를 확인할 수 없습니다. 다시 시도해 주세요.');
-   renderLuckyNumbers();el('luckyNotice').textContent=confirmed+'번 행운번호가 저장됐습니다. 운영 담당자에게 자동 전달됩니다.';
+   renderLuckyNumbers();el('luckyNotice').textContent=confirmed+'번 행운번호가 저장됐습니다.';
   }catch(e){
    el('luckyNotice').className='lucky-notice is-error';
    el('luckyNotice').textContent='번호를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요. ('+(e?.message||'연결 오류')+')';
