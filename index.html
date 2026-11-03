@@ -161,6 +161,18 @@
 .lucky-notice.is-error{color:#BA493D}
 .lucky-final-info{margin-top:14px;padding:13px 14px;border-radius:14px;background:#FFF8ED;border:1px solid #F1D7B5}
 .lucky-final-info strong{font-size:15px;color:#764F1D}
+.lucky-confirm-dialog{width:min(380px,calc(100% - 32px));max-width:380px;border:1px solid #EFE6DB;border-radius:20px;padding:25px 20px;background:#FFF;color:#25211E;box-shadow:0 18px 48px rgba(30,26,22,.18);font-family:"Noto Sans KR","Apple SD Gothic Neo",sans-serif}
+.lucky-confirm-dialog::backdrop{background:rgba(31,30,28,.42)}
+.lucky-confirm-dialog h2{font-size:20px;line-height:1.5;margin:0 0 12px}
+.lucky-confirm-dialog p{font-size:14.5px;line-height:1.65;margin:0 0 12px;word-break:keep-all}
+.lucky-confirm-dialog .lucky-confirm-number{display:inline-block;background:#FFF0D8;color:#8A4E00;border-radius:10px;padding:4px 10px;font-size:16px;font-weight:700}
+.lucky-confirm-dialog .lucky-confirm-warning{font-weight:700;color:#59452C}
+.lucky-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+.lucky-confirm-actions button{border-radius:12px;border:1px solid #DDD7D0;min-height:46px;padding:10px 6px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+#cancelLuckyConfirm{background:#FFF;color:#574F48}
+#confirmLuckyChoice{background:#FF9E1B;border-color:#FF9E1B;color:#FFF}
+.lucky-number:disabled{cursor:default;opacity:1}
+.lucky-picker .lucky-number.is-selected:disabled{background:#FFF1DC;color:#8A4E00}
 #entryGate[hidden],#liveApp[hidden]{display:none!important}
 #privateLaunch{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;background:#FCFBF7;text-align:center;padding:24px}
 #privateLaunch strong{display:block;color:#171717;font-size:22px;line-height:1.5}
@@ -177,6 +189,12 @@ html.private-link-entry #privateLaunch{display:flex}
 </style></head>
 <body>
 <div id="privateLaunch" role="status" aria-live="polite"><div><strong>하이런치 2.0</strong><span>내 점심 멤버를 불러오고 있어요.</span></div></div>
+<dialog class="lucky-confirm-dialog" id="luckyConfirmDialog" aria-labelledby="luckyDialogTitle" aria-describedby="luckyDialogDescription">
+<h2 id="luckyDialogTitle">🍀 행운번호를 확정할까요?</h2>
+<p id="luckyDialogDescription">우리 그룹의 행운번호는 <span class="lucky-confirm-number" id="luckySelectedValue"></span>입니다.<br/>그룹원들과 함께 정한 번호인가요?</p>
+<p class="lucky-confirm-warning">한 번 확정하면 변경할 수 없어요.</p>
+<div class="lucky-confirm-actions"><button id="cancelLuckyConfirm" type="button">다시 선택하기</button><button id="confirmLuckyChoice" type="button">확정하고 저장하기</button></div>
+</dialog>
 <section id="entryGate" aria-labelledby="entryTitle">
 <h1 id="entryTitle">하이런치 2.0 · 링크 확인</h1>
 <p class="testnote">개인별 하이런치 참여 링크를 통해 매칭 결과와 일정을 확인할 수 있습니다. 링크에 문제가 있다면 아래에 전체 주소를 붙여넣어 주세요.</p>
@@ -290,7 +308,7 @@ html.private-link-entry #privateLaunch{display:flex}
 <h3 class="section-title">☕ 우리 그룹의 행운번호</h3>
 <p class="lucky-caption">그룹원들과 함께 1~10 중 행운번호 하나를 골라 주세요! 당첨번호는 총 3개, 번호를 맞힌 그룹에는 1인당 커피값 5,000원을 추가 지원해 드려요. ☕</p>
 <div class="lucky-number-grid" id="luckyNumberGrid" role="group" aria-label="행운번호 선택"></div>
-<div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 저장하기</button></div>
+<div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 확정하기</button></div>
 <p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
 </section>
 </div>
@@ -336,17 +354,23 @@ function renderLuckyNumbers(){
  const saved=luckyFromStory(mine()?.story);
  pendingLuckyNumber=saved;
  const grid=el('luckyNumberGrid');
- grid.innerHTML=Array.from({length:10},(_,i)=>{const n=i+1;return '<button class="lucky-number'+(n===saved?' is-selected':'')+'" type="button" data-number="'+n+'" aria-pressed="'+(n===saved?'true':'false')+'">'+n+'</button>';}).join('');
- grid.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
-  pendingLuckyNumber=Number(b.dataset.number);
-  grid.querySelectorAll('button').forEach(x=>{const yes=Number(x.dataset.number)===pendingLuckyNumber;x.classList.toggle('is-selected',yes);x.setAttribute('aria-pressed',String(yes));});
-  el('saveLuckyNumber').disabled=pendingLuckyNumber===saved;
-  el('luckyNotice').className='lucky-notice';
-  el('luckyNotice').textContent=pendingLuckyNumber===saved?pendingLuckyNumber+'번이 저장되어 있어요.':'번호를 정했다면 아래에서 저장해 주세요.';
- }));
+ grid.innerHTML=Array.from({length:10},(_,i)=>{
+  const n=i+1;
+  return '<button class="lucky-number'+(n===saved?' is-selected':'')+'" type="button" data-number="'+n+'" aria-pressed="'+(n===saved?'true':'false')+'"'+(saved?' disabled':'')+'>'+n+'</button>';
+ }).join('');
+ if(!saved){
+  grid.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+   pendingLuckyNumber=Number(b.dataset.number);
+   grid.querySelectorAll('button').forEach(x=>{const yes=Number(x.dataset.number)===pendingLuckyNumber;x.classList.toggle('is-selected',yes);x.setAttribute('aria-pressed',String(yes));});
+   el('saveLuckyNumber').disabled=false;
+   el('luckyNotice').className='lucky-notice';
+   el('luckyNotice').textContent='번호를 정했다면 ‘행운번호 확정하기’를 눌러 주세요.';
+  }));
+ }
  el('saveLuckyNumber').disabled=true;
+ el('saveLuckyNumber').textContent=saved?'확정 완료':'행운번호 확정하기';
  el('luckyNotice').className='lucky-notice';
- el('luckyNotice').textContent=saved?saved+'번이 저장되어 있어요. 번호를 변경할 수도 있습니다.':'번호를 선택해 저장하면 운영DB에 자동 기록됩니다. 최종 일정 확정 전에 저장해 주세요.';
+ el('luckyNotice').textContent=saved?saved+'번이 확정됐습니다. 한 번 확정한 번호는 변경할 수 없어요.':'1~10 중 번호 하나를 선택한 뒤 확정해 주세요. 번호는 운영DB에 기록됩니다.';
 }
 const el=id=>document.getElementById(id);
 const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -500,24 +524,55 @@ function bind(){
   }catch(e){alert('일정 수정 실패: '+e.message);}
   finally{b.disabled=false;b.textContent='최종 일정 수정하기';}
  });
- el('saveLuckyNumber').addEventListener('click',async()=>{
-  if(!isApplicant||!state.finalizationOpen||state.final)return;
+ el('saveLuckyNumber').addEventListener('click',()=>{
+  if(!isApplicant||!state.finalizationOpen||state.final||luckyFromStory(mine()?.story))return;
   if(!Number.isInteger(pendingLuckyNumber)||pendingLuckyNumber<1||pendingLuckyNumber>10)return;
-  const r=mine();
-  if(!r?.completed){el('luckyNotice').textContent='먼저 참여 응답을 완료해 주세요.';return;}
-  const b=el('saveLuckyNumber');b.disabled=true;b.textContent='저장 중…';
+  el('luckySelectedValue').textContent=pendingLuckyNumber+'번';
+  el('luckyConfirmDialog').showModal();
+ });
+ el('cancelLuckyConfirm').addEventListener('click',()=>el('luckyConfirmDialog').close());
+ el('confirmLuckyChoice').addEventListener('click',async()=>{
+  const chosenNumber=pendingLuckyNumber;
+  const dialog=el('luckyConfirmDialog');
+  dialog.close();
+  if(!isApplicant||!state.finalizationOpen||state.final)return;
+  if(!Number.isInteger(chosenNumber)||chosenNumber<1||chosenNumber>10)return;
+  const b=el('saveLuckyNumber');
+  const confirmButton=el('confirmLuckyChoice');
+  const grid=el('luckyNumberGrid');
+  b.disabled=true;confirmButton.disabled=true;b.textContent='확정 중…';
+  grid.querySelectorAll('button').forEach(x=>x.disabled=true);
   try{
-   const payload={dates:[...(r.dates||[])],prefs:[...(r.prefs||[])],note:r.note||'',interests:[...(r.interests||[])],story:storyWithLucky(r.story,pendingLuckyNumber)};
+   // 재접속·다중 탭에서 이미 확정한 번호가 있으면 변경 없이 유지합니다.
+   const latest=await getState();
+   const saved=luckyFromStory(latest.responses?.[BOOT.member.name]?.story);
+   if(saved){
+    state=latest;renderLuckyNumbers();
+    el('luckyNotice').textContent='이미 '+saved+'번으로 확정된 번호가 있습니다. 다시 선택할 수 없어요.';
+    return;
+   }
+   if(latest.final||!latest.finalizationOpen)throw new Error('현재는 행운번호를 확정할 수 없습니다.');
+   const r=latest.responses?.[BOOT.member.name];
+   if(!r?.completed)throw new Error('먼저 참여 응답을 완료해 주세요.');
+   const payload={dates:[...(r.dates||[])],prefs:[...(r.prefs||[])],note:r.note||'',interests:[...(r.interests||[])],story:storyWithLucky(r.story,chosenNumber)};
    const result=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);
    state={responses:result.responses||{},final:result.final||null,restaurants:result.restaurants||[],responseCount:result.responseCount||0,menuSummary:result.menuSummary||{categories:[],notes:[]},finalizationOpen:!!result.finalizationOpen};
    const confirmed=luckyFromStory(mine()?.story);
-   if(confirmed!==pendingLuckyNumber)throw new Error('저장된 번호를 확인할 수 없습니다. 다시 시도해 주세요.');
-   renderLuckyNumbers();el('luckyNotice').textContent=confirmed+'번 행운번호가 저장됐습니다.';
+   if(confirmed!==chosenNumber)throw new Error('저장 결과를 확인하지 못했습니다. 새로고침해 상태를 확인해 주세요.');
+   renderLuckyNumbers();
+   el('luckyNotice').textContent=confirmed+'번으로 확정됐습니다. 운영DB에 저장되었습니다.';
   }catch(e){
    el('luckyNotice').className='lucky-notice is-error';
-   el('luckyNotice').textContent='번호를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요. ('+(e?.message||'연결 오류')+')';
-   b.disabled=false;
-  }finally{b.textContent='행운번호 저장하기';}
+   el('luckyNotice').textContent='행운번호를 저장하지 못했습니다. ('+(e?.message||'연결 오류')+')';
+   // 실패하더라도 서버에 이미 저장됐을 수 있으므로 새로고침 후 확인하게 합니다.
+   b.textContent='저장 상태 확인이 필요해요';
+  }finally{
+   confirmButton.disabled=false;
+   if(!luckyFromStory(mine()?.story)&&b.textContent!=='저장 상태 확인이 필요해요'){
+    b.textContent='행운번호 확정하기';b.disabled=false;
+    grid.querySelectorAll('button').forEach(x=>x.disabled=false);
+   }
+  }
  });
  el('confirmFinal').addEventListener('click',async()=>{
   if(!isApplicant||!state.finalizationOpen)return;
