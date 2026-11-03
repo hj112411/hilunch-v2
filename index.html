@@ -150,6 +150,17 @@
 </style><style>
 .preview-site-note { padding: 10px 16px; background: #F2F6FD; color: #315277; border-bottom: 1px solid #DCE7F5; text-align:center; font-size: 12px; line-height: 1.5; font-weight: 600; }
 </style><style>
+
+.lucky-picker{margin-top:14px}
+.lucky-picker .section-title{font-size:18px}
+.lucky-number-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:15px 0 12px}
+.lucky-number{min-height:48px;border-radius:12px;background:#FFF;border:1px solid #E4DCD0;color:#514A43;font-size:17px;font-weight:700;cursor:pointer}
+.lucky-number.is-selected{background:#FFF1DC;border:2px solid #FF9E1B;color:#8A4E00}
+.lucky-caption{font-size:13.5px;line-height:1.6;color:#635B52;margin:6px 0 0;word-break:keep-all}
+.lucky-notice{font-size:13px;line-height:1.6;color:#6D6258;margin:12px 0 0}
+.lucky-notice.is-error{color:#BA493D}
+.lucky-final-info{margin-top:14px;padding:13px 14px;border-radius:14px;background:#FFF8ED;border:1px solid #F1D7B5}
+.lucky-final-info strong{font-size:15px;color:#764F1D}
 #entryGate[hidden],#liveApp[hidden]{display:none!important}
 #privateLaunch{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;background:#FCFBF7;text-align:center;padding:24px}
 #privateLaunch strong{display:block;color:#171717;font-size:22px;line-height:1.5}
@@ -275,12 +286,19 @@ html.private-link-entry #privateLaunch{display:flex}
 <div class="summary-block" id="allFinalDates"><h3>최종 날짜 직접 선택</h3><div class="date-grid" id="finalDateGrid"></div></div>
 </section>
 <div class="actions"><button class="primary" id="confirmFinal" type="button">최종 일정 확정하기</button></div>
-
+<section class="section lucky-picker" id="luckyDecision">
+<h3 class="section-title">☕ 우리 그룹의 행운번호</h3>
+<p class="lucky-caption">그룹원들과 함께 1~10 중 숫자 하나를 골라 주세요. 다른 그룹과 같은 번호를 골라도 괜찮아요.</p>
+<div class="lucky-number-grid" id="luckyNumberGrid" role="group" aria-label="행운번호 선택"></div>
+<div class="actions"><button class="secondary" id="saveLuckyNumber" type="button" disabled>행운번호 저장하기</button></div>
+<p class="lucky-notice" id="luckyNotice" role="status" aria-live="polite">번호를 선택해 저장하면 운영 담당자에게 자동으로 전달됩니다. 최종 일정 확정 전에 저장해 주세요.</p>
+</section>
 </div>
 <section class="section hidden" id="finalConfirmed">
 <h2 class="section-title">하이런치 2.0 일정이 확정됐어요.</h2>
 <div class="final-card" id="finalCard"></div>
 <div class="summary-block" id="restaurantRecommendations"><h3>추천 식당</h3><div class="restaurants" id="restaurantList"></div></div>
+<div class="lucky-final-info hidden" id="luckyFinalInfo"><strong id="luckyFinalTitle"></strong><p class="lucky-caption">그룹에서 선택한 번호입니다. 추첨 결과는 별도로 안내드릴 예정이에요.</p></div>
 <div class="actions"><button class="secondary hidden" id="editFinalDecision" type="button">최종 일정 수정하기</button></div></section>
 <div class="spacer"></div>
 </div></main></div>
@@ -308,6 +326,28 @@ let isApplicant=false;
 let state={responses:{},final:null,restaurants:[],responseCount:0,menuSummary:{categories:[],notes:[]},finalizationOpen:false};
 let hydrated=false,editing=false,hasPendingChange=false;
 let selectedDates=new Set(),preference=new Set(),selectedInterests=new Set(),finalDate='';
+let pendingLuckyNumber=null;
+const luckyMarkerRE=/\s*\[HL2_LUCKY:(10|[1-9])\]\s*$/;
+function luckyFromStory(story){const m=String(story||'').match(luckyMarkerRE);return m?Number(m[1]):null;}
+function cleanLuckyStory(story){return String(story||'').replace(luckyMarkerRE,'').trimEnd();}
+function storyWithLucky(story,n){const text=cleanLuckyStory(story);return text+(text?'\n':'')+'[HL2_LUCKY:'+n+']';}
+function renderLuckyNumbers(){
+ if(!isApplicant)return;
+ const saved=luckyFromStory(mine()?.story);
+ pendingLuckyNumber=saved;
+ const grid=el('luckyNumberGrid');
+ grid.innerHTML=Array.from({length:10},(_,i)=>{const n=i+1;return '<button class="lucky-number'+(n===saved?' is-selected':'')+'" type="button" data-number="'+n+'" aria-pressed="'+(n===saved?'true':'false')+'">'+n+'</button>';}).join('');
+ grid.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  pendingLuckyNumber=Number(b.dataset.number);
+  grid.querySelectorAll('button').forEach(x=>{const yes=Number(x.dataset.number)===pendingLuckyNumber;x.classList.toggle('is-selected',yes);x.setAttribute('aria-pressed',String(yes));});
+  el('saveLuckyNumber').disabled=pendingLuckyNumber===saved;
+  el('luckyNotice').className='lucky-notice';
+  el('luckyNotice').textContent=pendingLuckyNumber===saved?pendingLuckyNumber+'번이 저장되어 있어요.':'번호를 정했다면 아래에서 저장해 주세요.';
+ }));
+ el('saveLuckyNumber').disabled=true;
+ el('luckyNotice').className='lucky-notice';
+ el('luckyNotice').textContent=saved?saved+'번이 저장되어 있어요. 번호를 변경할 수도 있습니다.':'번호를 선택해 저장하면 운영 담당자에게 자동으로 전달됩니다. 최종 일정 확정 전에 저장해 주세요.';
+}
 const el=id=>document.getElementById(id);
 const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const interestExamples={'운동':'예. 1년차 러너! 러닝 좋아합니다 🏃‍♂️‍➡️','육아':'예. 7살 아이를 키우고 있어요','여행':'예. 주말에 가까운 곳으로 여행을 다녀요','맛집·카페':'예. 새로운 카페 찾아다니는 걸 좋아해요','반려동물':'예. 반려견과 매일 산책해요','책·콘텐츠':'예. 요즘 추리소설을 재미있게 읽고 있어요','공연·전시':'예. 소규모 공연 보러 가는 걸 좋아해요','재테크':'예. 최근 ETF 공부를 시작했어요','자기계발':'예. 요즘 영어 공부를 다시 시작했어요','게임':'예. 주말에는 퍼즐 게임을 즐겨요'};
@@ -320,7 +360,7 @@ function doneEntries(){return Object.entries(state.responses).filter(([,r])=>r&&
 function missingNames(){return members.filter(m=>!state.responses[m.name]?.completed).map(m=>m.name);}
 function menuPrefs(r){if(!r)return[];return Array.isArray(r.prefs)?r.prefs:[];}
 function updateStoryPlaceholder(){const last=[...selectedInterests].slice(-1)[0]||'운동';el('storyNote').placeholder=interestExamples[last]||interestExamples['운동'];}
-function loadForm(r){selectedDates=new Set(r?.dates||[]);preference=new Set(menuPrefs(r));selectedInterests=new Set(r?.interests||[]);el('foodNote').value=r?.note||'';el('storyNote').value=r?.story||'';renderDates();document.querySelectorAll('#prefs .pref').forEach(b=>b.classList.toggle('selected',preference.has(b.textContent.trim())));document.querySelectorAll('.interest-chip').forEach(b=>b.classList.toggle('selected',selectedInterests.has(b.dataset.interest)));updateStoryPlaceholder();}
+function loadForm(r){selectedDates=new Set(r?.dates||[]);preference=new Set(menuPrefs(r));selectedInterests=new Set(r?.interests||[]);el('foodNote').value=r?.note||'';el('storyNote').value=cleanLuckyStory(r?.story||'');renderDates();document.querySelectorAll('#prefs .pref').forEach(b=>b.classList.toggle('selected',preference.has(b.textContent.trim())));document.querySelectorAll('.interest-chip').forEach(b=>b.classList.toggle('selected',selectedInterests.has(b.dataset.interest)));updateStoryPlaceholder();}
 function renderDates(){const box=el('dateGrid');renderCalendarCells(box,selectedDates,d=>{selectedDates.has(d)?selectedDates.delete(d):selectedDates.add(d);renderDates();markDirty();});el('dateCount').textContent=selectedDates.size?`${selectedDates.size}개 날짜 선택`:'선택한 날짜 없음';}
 function showSavedFeedback(yes){el('responseSavedNotice').classList.toggle('hidden',!yes);}
 function setResponseButton(mode){editing=mode==='editing';el('finishResponse').textContent=mode==='editing'?'변경사항 저장':mode==='saved'?'응답 수정하기':'응답 마치기';}
@@ -337,7 +377,7 @@ function introReset(){const done=!!(mine()?.completed||state.final);el('introSta
 function renderStatus(){const statuses=members.map(m=>({name:m.name,completed:!!state.responses[m.name]?.completed}));el('responseBadge').textContent=`${statuses.filter(x=>x.completed).length}/${members.length}명 완료`;el('statusList').innerHTML=statuses.map(x=>`<div class="status-row"><span>${safe(x.name)}</span><span class="${x.completed?'done':'pending'}">${x.completed?'응답 완료':'미응답'}</span></div>`).join('');renderApplicantGate();}
 function commonDates(){const rs=doneEntries().map(([,r])=>r).filter(r=>(r.dates||[]).length);if(!rs.length)return[];return rs[0].dates.filter(d=>rs.every(r=>r.dates.includes(d)));}
 function finalDateGrid(common){const box=el('finalDateGrid');renderCalendarCells(box,new Set(finalDate?[finalDate]:[]),(d,b)=>{finalDate=d;document.querySelectorAll('#finalDateGrid .date,#commonDates button').forEach(x=>x.classList.remove('final-selected'));b.classList.add('final-selected');},common);if(finalDate){[...box.querySelectorAll('.date')].find(x=>x.title===finalDate)?.classList.add('final-selected');}}
-function renderDecision(){const common=commonDates(),missing=missingNames();el('decisionResponseBadge').textContent=`${doneEntries().length}/${members.length}명 응답`;el('missingWarning').classList.toggle('hidden',!missing.length);el('offlineConfirmed').checked=!missing.length;el('missingTitle').textContent=missing.length?`아직 ${missing.join(', ')}님이 응답하지 않았어요.`:'';el('commonDates').innerHTML=common.length?common.map(d=>`<button type="button" data-date="${safe(d)}">${safe(d)}</button>`).join(''):'<span class="note">현재 응답자 기준으로 겹치는 날짜가 없어요. 아래에서 직접 확정할 수 있습니다.</span>';el('commonDates').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{finalDate=b.dataset.date;document.querySelectorAll('#finalDateGrid .date,#commonDates button').forEach(x=>x.classList.remove('final-selected'));b.classList.add('final-selected');}));finalDateGrid(common);}
+function renderDecision(){const common=commonDates(),missing=missingNames();el('decisionResponseBadge').textContent=`${doneEntries().length}/${members.length}명 응답`;el('missingWarning').classList.toggle('hidden',!missing.length);el('offlineConfirmed').checked=!missing.length;el('missingTitle').textContent=missing.length?`아직 ${missing.join(', ')}님이 응답하지 않았어요.`:'';el('commonDates').innerHTML=common.length?common.map(d=>`<button type="button" data-date="${safe(d)}">${safe(d)}</button>`).join(''):'<span class="note">현재 응답자 기준으로 겹치는 날짜가 없어요. 아래에서 직접 확정할 수 있습니다.</span>';el('commonDates').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{finalDate=b.dataset.date;document.querySelectorAll('#finalDateGrid .date,#commonDates button').forEach(x=>x.classList.remove('final-selected'));b.classList.add('final-selected');}));finalDateGrid(common);renderLuckyNumbers();}
 function renderRestaurants(){const res=state.restaurants||[];el('restaurantList').innerHTML=res.length?res.map(r=>`<a class="restaurant compact-restaurant" href="${safe(r.naverUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;color:inherit"><div class="restaurant-head"><div class="restaurant-name">${safe(r.name)}</div><span class="restaurant-cat">${safe(r.cat)}</span></div><div class="restaurant-meta">${safe(r.area)}</div></a>`).join(''):'<div class="note">등록된 추천 식당이 없습니다. 운영 담당자에게 문의해 주세요.</div>';}
 function renderFinal(){
  if(!state.final)return;
@@ -345,7 +385,7 @@ function renderFinal(){
  const cats=(menu.categories||[]).join(' / ')||'응답 없음';
  const notes=(menu.notes||[]).join(' / ');
  el('finalCard').innerHTML=`<div class="final-row"><b>날짜</b>${safe(state.final.date)}</div><div class="final-row"><b>멤버</b>${members.map(m=>safe(m.name)).join(' · ')}</div><div class="final-row final-menu-row"><b>메뉴 선호</b><span>${safe(cats)}</span></div>${notes?`<div class="final-row final-menu-row"><b>참고 사항</b><span>${safe(notes)}</span></div>`:''}`;
- renderRestaurants();el('editFinalDecision').classList.toggle('hidden',!isApplicant||!state.finalizationOpen);
+ renderRestaurants();const n=isApplicant?luckyFromStory(mine()?.story):null;el('luckyFinalInfo').classList.toggle('hidden',!n);if(n)el('luckyFinalTitle').textContent='☕ 우리 그룹의 행운번호: '+n+'번';el('editFinalDecision').classList.toggle('hidden',!isApplicant||!state.finalizationOpen);
 }
 function renderRole(){
  hideFlow();introReset();const r=mine();
@@ -388,7 +428,7 @@ async function invokeGas(method,...args){
  return workerCall(body);
 }
 async function getState(){const r=await invokeGas('getGroupState',BOOT.groupToken,BOOT.member.token);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
-async function saveMyResponse(){const payload={dates:[...selectedDates],prefs:[...preference],note:el('foodNote').value.trim(),interests:[...selectedInterests],story:el('storyNote').value.trim()};const r=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
+async function saveMyResponse(){const payload={dates:[...selectedDates],prefs:[...preference],note:el('foodNote').value.trim(),interests:[...selectedInterests],story:luckyFromStory(mine()?.story)?storyWithLucky(el('storyNote').value.trim(),luckyFromStory(mine()?.story)):el('storyNote').value.trim()};const r=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);return {responses:r.responses||{},final:r.final||null,restaurants:r.restaurants||[],responseCount:r.responseCount||0,menuSummary:r.menuSummary||{categories:[],notes:[]},finalizationOpen:!!r.finalizationOpen};}
 // 마지막 [응답 마치기]는 기다리는 화면 없이 다음 안내를 즉시 펼칩니다.
 // 서버가 확인하기 전에는 '저장 완료'라고 안내하지 않습니다.
 function responseSaveNotice(){return isApplicant?el('applicantNextAction'):el('responseSavedNotice');}
@@ -459,6 +499,25 @@ function bind(){
    hideFlow();renderStatus();show('applicantStatus',false);renderDecision();show('finalDecision');
   }catch(e){alert('일정 수정 실패: '+e.message);}
   finally{b.disabled=false;b.textContent='최종 일정 수정하기';}
+ });
+ el('saveLuckyNumber').addEventListener('click',async()=>{
+  if(!isApplicant||!state.finalizationOpen||state.final)return;
+  if(!Number.isInteger(pendingLuckyNumber)||pendingLuckyNumber<1||pendingLuckyNumber>10)return;
+  const r=mine();
+  if(!r?.completed){el('luckyNotice').textContent='먼저 참여 응답을 완료해 주세요.';return;}
+  const b=el('saveLuckyNumber');b.disabled=true;b.textContent='저장 중…';
+  try{
+   const payload={dates:[...(r.dates||[])],prefs:[...(r.prefs||[])],note:r.note||'',interests:[...(r.interests||[])],story:storyWithLucky(r.story,pendingLuckyNumber)};
+   const result=await invokeGas('saveGroupResponse',BOOT.groupToken,BOOT.member.token,payload);
+   state={responses:result.responses||{},final:result.final||null,restaurants:result.restaurants||[],responseCount:result.responseCount||0,menuSummary:result.menuSummary||{categories:[],notes:[]},finalizationOpen:!!result.finalizationOpen};
+   const confirmed=luckyFromStory(mine()?.story);
+   if(confirmed!==pendingLuckyNumber)throw new Error('저장된 번호를 확인할 수 없습니다. 다시 시도해 주세요.');
+   renderLuckyNumbers();el('luckyNotice').textContent=confirmed+'번 행운번호가 저장됐습니다. 운영 담당자에게 자동 전달됩니다.';
+  }catch(e){
+   el('luckyNotice').className='lucky-notice is-error';
+   el('luckyNotice').textContent='번호를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요. ('+(e?.message||'연결 오류')+')';
+   b.disabled=false;
+  }finally{b.textContent='행운번호 저장하기';}
  });
  el('confirmFinal').addEventListener('click',async()=>{
   if(!isApplicant||!state.finalizationOpen)return;
